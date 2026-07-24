@@ -2,7 +2,6 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local Camera = workspace.CurrentCamera
 
 if PlayerGui:FindFirstChild("MobileMenu") then
     PlayerGui.MobileMenu:Destroy()
@@ -24,24 +23,25 @@ Watermark.Text = "script ot splacero (war military)"
 
 task.spawn(function()
     task.wait(10)
-    Watermark:Destroy()
+    pcall(function() Watermark:Destroy() end)
 end)
 
 local ToggleButton = Instance.new("TextButton", ScreenGui)
-ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Size = UDim2.new(0, 110, 0, 50)
 ToggleButton.Position = UDim2.new(0, 10, 0, 10)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 45, 20)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 14
+ToggleButton.TextSize = 13
 ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Text = "MENU"
+ToggleButton.Text = "menu splacero"
 
+-- Головне меню (тільки важливе: Anti-Recoil, ESP, Noclip)
 local MainFrame = Instance.new("ScrollingFrame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 215)
-MainFrame.Position = UDim2.new(0, 70, 0, 10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Size = UDim2.new(0, 220, 0, 170)
+MainFrame.Position = UDim2.new(0, 130, 0, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 30, 15)
 MainFrame.Visible = false
-MainFrame.CanvasSize = UDim2.new(0, 0, 0, 250)
+MainFrame.CanvasSize = UDim2.new(0, 0, 0, 200)
 MainFrame.ScrollBarThickness = 4
 
 ToggleButton.MouseButton1Click:Connect(function()
@@ -52,7 +52,7 @@ local function addBtn(name, yPos, callback)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 200, 0, 35)
     btn.Position = UDim2.new(0, 10, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 55, 30)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 14
     btn.Font = Enum.Font.SourceSansBold
@@ -62,7 +62,7 @@ local function addBtn(name, yPos, callback)
     btn.MouseButton1Click:Connect(function()
         active = not active
         btn.Text = name .. ": " .. (active and "ON" or "OFF")
-        btn.BackgroundColor3 = active and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(50, 50, 50)
+        btn.BackgroundColor3 = active and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(20, 55, 30)
         callback(active)
     end)
 end
@@ -79,8 +79,9 @@ task.spawn(function()
         if noRecoilActive then
             pcall(function()
                 for _, v in pairs(getgc(true)) do
-                    if type(v) == "table" and rawget(v, "Recoil") then
-                        v.Recoil = 0
+                    if type(v) == "table" then
+                        if rawget(v, "Recoil") then v.Recoil = 0 end
+                        if rawget(v, "CameraShake") then v.CameraShake = 0 end
                     end
                 end
             end)
@@ -88,19 +89,18 @@ task.spawn(function()
     end
 end)
 
--- 2. ESP
+-- 2. ESP (Highlight)
 local espActive = false
 addBtn("ESP", 55, function(state)
     espActive = state
 end)
 
-local ESP_COLOR = Color3.fromRGB(0, 255, 0)
 local function setupHighlight(character)
-    if not character:FindFirstChild("MobileESP_Highlight") then
+    if character and not character:FindFirstChild("MobileESP_Highlight") then
         local highlight = Instance.new("Highlight")
         highlight.Name = "MobileESP_Highlight"
         highlight.Adornee = character
-        highlight.FillColor = ESP_COLOR
+        highlight.FillColor = Color3.fromRGB(0, 255, 0)
         highlight.FillTransparency = 0.5
         highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         highlight.OutlineTransparency = 0
@@ -112,10 +112,9 @@ RunService.RenderStepped:Connect(function()
     if espActive then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local char = player.Character
-                local hum = char:FindFirstChildOfClass("Humanoid")
+                local hum = player.Character:FindFirstChildOfClass("Humanoid")
                 if hum and hum.Health > 0 then
-                    setupHighlight(char)
+                    setupHighlight(player.Character)
                 end
             end
         end
@@ -129,23 +128,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 3. Speedhack
-local speedActive = false
-addBtn("Speed", 100, function(state)
-    speedActive = state
-end)
-
-RunService.RenderStepped:Connect(function()
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = speedActive and 32 or 16
-    end
-end)
-
--- 4. Noclip
+-- 3. Noclip
 local noclipActive = false
-addBtn("Noclip", 145, function(state)
+addBtn("Noclip", 100, function(state)
     noclipActive = state
 end)
 
@@ -158,24 +143,6 @@ RunService.Stepped:Connect(function()
                     part.CanCollide = false
                 end
             end
-        end
-    end
-end)
-
--- 5. Fly
-local flyActive = false
-addBtn("Fly", 190, function(state)
-    flyActive = state
-end)
-
-RunService.RenderStepped:Connect(function()
-    if flyActive then
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Velocity = Vector3.new(0, 1, 0)
-            local camVec = Camera.CFrame.LookVector
-            hrp.CFrame = hrp.CFrame + (camVec * 0.8)
         end
     end
 end)
