@@ -10,8 +10,9 @@ end
 local ScreenGui = Instance.new("ScreenGui", PlayerGui)
 ScreenGui.Name = "MobileMenu"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Чорний водяний знак (зникає через 10 секунд)
+-- Водяний знак
 local Watermark = Instance.new("TextLabel", ScreenGui)
 Watermark.Size = UDim2.new(0, 300, 0, 30)
 Watermark.Position = UDim2.new(0.5, -150, 0, 5)
@@ -26,6 +27,7 @@ task.spawn(function()
     pcall(function() Watermark:Destroy() end)
 end)
 
+-- Кнопка відкриття/закриття меню
 local ToggleButton = Instance.new("TextButton", ScreenGui)
 ToggleButton.Size = UDim2.new(0, 110, 0, 50)
 ToggleButton.Position = UDim2.new(0, 10, 0, 10)
@@ -34,15 +36,19 @@ ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextSize = 13
 ToggleButton.Font = Enum.Font.SourceSansBold
 ToggleButton.Text = "menu splacero"
+ToggleButton.Active = true
+ToggleButton.Draggable = true
 
--- Головне меню (тільки важливе: Anti-Recoil, ESP, Noclip)
+-- Головне меню (ScrollingFrame)
 local MainFrame = Instance.new("ScrollingFrame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 220, 0, 170)
+MainFrame.Size = UDim2.new(0, 220, 0, 220)
 MainFrame.Position = UDim2.new(0, 130, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 30, 15)
 MainFrame.Visible = false
-MainFrame.CanvasSize = UDim2.new(0, 0, 0, 200)
+MainFrame.CanvasSize = UDim2.new(0, 0, 0, 280)
 MainFrame.ScrollBarThickness = 4
+MainFrame.Active = true
+MainFrame.Draggable = true
 
 ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
@@ -146,3 +152,44 @@ RunService.Stepped:Connect(function()
         end
     end
 end)
+
+-- 4. Speed Menu
+local speedBox = Instance.new("TextBox", MainFrame)
+speedBox.Size = UDim2.new(0, 200, 0, 35)
+speedBox.Position = UDim2.new(0, 10, 0, 145)
+speedBox.BackgroundColor3 = Color3.fromRGB(20, 55, 30)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderText = "Speed (50, 60, 70...)"
+speedBox.Text = ""
+speedBox.TextSize = 14
+speedBox.Font = Enum.Font.SourceSansBold
+speedBox.ClearTextOnFocus = false
+
+local speedMultiplier = 1
+
+speedBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local num = tonumber(speedBox.Text)
+    if num then
+        speedMultiplier = num / 16
+    else
+        speedMultiplier = 1
+    end
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+    if speedMultiplier > 1 then
+        local char = LocalPlayer.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            
+            if hrp and hum then
+                local moveDir = hum.MoveDirection
+                if moveDir.Magnitude > 0.05 then
+                    hrp.CFrame = hrp.CFrame + (moveDir * (speedMultiplier - 1) * dt * 25)
+                end
+            end
+        end
+    end
+end)
+
