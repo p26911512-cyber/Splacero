@@ -1,0 +1,495 @@
+-- Захищений gethui
+local gethui = gethui or function() return game:GetService("CoreGui") end
+
+-- Сервіси
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Teams = game:GetService("Teams")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Налаштування
+local AimbotEnabled = false 
+local EspEnabled = false   
+local AimPart = "Head"     
+local Sensitivity = 1      
+local MaxDistance = 150    
+local IgnoredTeams = {}    
+local SpecificIgnoredPlayers = {} 
+local ForcedTargetPlayers = {}    
+local SelectedTab = "Players"       
+
+local EspDrawings = {}
+
+-- Створення основного GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BobruiskRpMenuGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999999
+
+pcall(function()
+    if gethui then
+        ScreenGui.Parent = gethui()
+    else
+        ScreenGui.Parent = CoreGui
+    end
+end)
+
+if not ScreenGui.Parent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Кнопка згортання/розгортання меню
+local OpenCloseBtn = Instance.new("TextButton")
+OpenCloseBtn.Name = "OpenCloseBtn"
+OpenCloseBtn.Parent = ScreenGui
+OpenCloseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+OpenCloseBtn.BorderColor3 = Color3.fromRGB(0, 191, 255)
+OpenCloseBtn.Position = UDim2.new(0.02, 0, 0.05, 0)
+OpenCloseBtn.Size = UDim2.new(0, 110, 0, 30)
+OpenCloseBtn.Font = Enum.Font.SourceSansBold
+OpenCloseBtn.Text = "MENU [ВІДКРИТИ]"
+OpenCloseBtn.TextColor3 = Color3.fromRGB(0, 191, 255)
+OpenCloseBtn.TextSize = 12
+OpenCloseBtn.Active = true
+OpenCloseBtn.Draggable = true
+
+-- Головне вікно меню
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Parent = ScreenGui
+MainWindow.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainWindow.BackgroundTransparency = 0.1
+MainWindow.BorderColor3 = Color3.fromRGB(0, 191, 255)
+MainWindow.Position = UDim2.new(0.02, 0, 0.12, 0)
+MainWindow.Size = UDim2.new(0, 275, 0, 395)
+MainWindow.Visible = true
+MainWindow.Active = true
+MainWindow.Draggable = true
+
+-- Заголовок меню
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = MainWindow
+TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleLabel.BorderSizePixel = 0
+TitleLabel.Size = UDim2.new(1, 0, 0, 24)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Text = "menu bobruisk rp [mobile]"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 191, 255)
+TitleLabel.TextSize = 11
+
+-- Кнопка Аімбота
+local ToggleAimbotBtn = Instance.new("TextButton")
+ToggleAimbotBtn.Parent = MainWindow
+ToggleAimbotBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleAimbotBtn.BorderColor3 = Color3.fromRGB(255, 60, 60)
+ToggleAimbotBtn.Position = UDim2.new(0.04, 0, 0.07, 0)
+ToggleAimbotBtn.Size = UDim2.new(0.92, 0, 0, 24)
+ToggleAimbotBtn.Font = Enum.Font.SourceSansBold
+ToggleAimbotBtn.Text = "Aimbot: OFF"
+ToggleAimbotBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+ToggleAimbotBtn.TextSize = 11
+
+-- Кнопка Безпечного ESP
+local ToggleEspBtn = Instance.new("TextButton")
+ToggleEspBtn.Parent = MainWindow
+ToggleEspBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleEspBtn.BorderColor3 = Color3.fromRGB(255, 60, 60)
+ToggleEspBtn.Position = UDim2.new(0.04, 0, 0.14, 0)
+ToggleEspBtn.Size = UDim2.new(0.92, 0, 0, 24)
+ToggleEspBtn.Font = Enum.Font.SourceSansBold
+ToggleEspBtn.Text = "Safe ESP: OFF"
+ToggleEspBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+ToggleEspBtn.TextSize = 11
+
+-- Поле для введення нікнейму
+local NameInputBox = Instance.new("TextBox")
+NameInputBox.Parent = MainWindow
+NameInputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+NameInputBox.BorderColor3 = Color3.fromRGB(0, 191, 255)
+NameInputBox.Position = UDim2.new(0.04, 0, 0.21, 0)
+NameInputBox.Size = UDim2.new(0.92, 0, 0, 22)
+NameInputBox.Font = Enum.Font.SourceSansBold
+NameInputBox.PlaceholderText = "Пошук гравця..."
+NameInputBox.Text = ""
+NameInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+NameInputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+NameInputBox.TextSize = 10
+
+-- Кнопки перемикання вкладок
+local TabTeamsBtn = Instance.new("TextButton")
+TabTeamsBtn.Parent = MainWindow
+TabTeamsBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TabTeamsBtn.BorderColor3 = Color3.fromRGB(100, 100, 100)
+TabTeamsBtn.Position = UDim2.new(0.04, 0, 0.275, 0)
+TabTeamsBtn.Size = UDim2.new(0.44, 0, 0, 20)
+TabTeamsBtn.Font = Enum.Font.SourceSansBold
+TabTeamsBtn.Text = "Команди"
+TabTeamsBtn.TextColor3 = Color3.fromRGB(170, 170, 170)
+TabTeamsBtn.TextSize = 10
+
+local TabPlayersBtn = Instance.new("TextButton")
+TabPlayersBtn.Parent = MainWindow
+TabPlayersBtn.BackgroundColor3 = Color3.fromRGB(25, 60, 90)
+TabPlayersBtn.BorderColor3 = Color3.fromRGB(0, 191, 255)
+TabPlayersBtn.Position = UDim2.new(0.52, 0, 0.275, 0)
+TabPlayersBtn.Size = UDim2.new(0.44, 0, 0, 20)
+TabPlayersBtn.Font = Enum.Font.SourceSansBold
+TabPlayersBtn.Text = "Гравці"
+TabPlayersBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TabPlayersBtn.TextSize = 10
+
+-- Заголовок секції списку
+local ListSecTitle = Instance.new("TextLabel")
+ListSecTitle.Parent = MainWindow
+ListSecTitle.BackgroundTransparency = 1
+ListSecTitle.Position = UDim2.new(0.04, 0, 0.335, 0)
+ListSecTitle.Size = UDim2.new(0.92, 0, 0, 15)
+ListSecTitle.Font = Enum.Font.SourceSansBold
+ListSecTitle.Text = "Список гравців:"
+ListSecTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+ListSecTitle.TextSize = 10
+ListSecTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Контейнер для списків
+local ListContainer = Instance.new("ScrollingFrame")
+ListContainer.Parent = MainWindow
+ListContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ListContainer.BorderColor3 = Color3.fromRGB(60, 60, 60)
+ListContainer.Position = UDim2.new(0.04, 0, 0.375, 0)
+ListContainer.Size = UDim2.new(0.92, 0, 0, 90)
+ListContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+ListContainer.ScrollBarThickness = 3
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Parent = ListContainer
+ListLayout.Padding = UDim.new(0, 3)
+
+-- Кнопка оновлення
+local RefreshBtn = Instance.new("TextButton")
+RefreshBtn.Parent = MainWindow
+RefreshBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+RefreshBtn.BorderColor3 = Color3.fromRGB(0, 191, 255)
+RefreshBtn.Position = UDim2.new(0.04, 0, 0.615, 0)
+RefreshBtn.Size = UDim2.new(0.92, 0, 0, 22)
+RefreshBtn.Font = Enum.Font.SourceSansBold
+RefreshBtn.Text = "Оновити список"
+RefreshBtn.TextColor3 = Color3.fromRGB(0, 191, 255)
+RefreshBtn.TextSize = 10
+
+-- Інфо блок
+local InfoBox = Instance.new("TextLabel")
+InfoBox.Parent = MainWindow
+InfoBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+InfoBox.BorderColor3 = Color3.fromRGB(60, 60, 60)
+InfoBox.Position = UDim2.new(0.04, 0, 0.675, 0)
+InfoBox.Size = UDim2.new(0.92, 0, 0, 115)
+InfoBox.Font = Enum.Font.SourceSansBold
+InfoBox.Text = "Найближча ціль: Немає\nДистанція: -\nСтатус: Меню завантажено."
+InfoBox.TextColor3 = Color3.fromRGB(220, 220, 220)
+InfoBox.TextSize = 10
+InfoBox.TextWrapped = true
+InfoBox.TextYAlignment = Enum.TextYAlignment.Top
+
+-- Відкриття/закриття меню
+OpenCloseBtn.MouseButton1Click:Connect(function()
+    MainWindow.Visible = not MainWindow.Visible
+    OpenCloseBtn.Text = MainWindow.Visible and "MENU [ЗКРИТИ]" or "MENU [ВІДКРИТИ]"
+end)
+
+-- Увімкнення/вимкнення аімбота
+ToggleAimbotBtn.MouseButton1Click:Connect(function()
+    AimbotEnabled = not AimbotEnabled
+    ToggleAimbotBtn.Text = AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
+    ToggleAimbotBtn.TextColor3 = AimbotEnabled and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+    ToggleAimbotBtn.BorderColor3 = AimbotEnabled and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+end)
+
+-- Функція очищення ESP
+local function ClearEsp()
+    for _, gui in pairs(EspDrawings) do
+        if gui then gui:Destroy() end
+    end
+    EspDrawings = {}
+end
+
+-- Увімкнення/вимкнення Safe ESP
+ToggleEspBtn.MouseButton1Click:Connect(function()
+    EspEnabled = not EspEnabled
+    ToggleEspBtn.Text = EspEnabled and "Safe ESP: ON" or "Safe ESP: OFF"
+    ToggleEspBtn.TextColor3 = EspEnabled and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+    ToggleEspBtn.BorderColor3 = EspEnabled and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+    
+    if not EspEnabled then
+        ClearEsp()
+    end
+end)
+
+local RefreshLists
+
+TabTeamsBtn.MouseButton1Click:Connect(function()
+    SelectedTab = "Teams"
+    TabTeamsBtn.BackgroundColor3 = Color3.fromRGB(25, 60, 90)
+    TabTeamsBtn.BorderColor3 = Color3.fromRGB(0, 191, 255)
+    TabTeamsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    TabPlayersBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    TabPlayersBtn.BorderColor3 = Color3.fromRGB(100, 100, 100)
+    TabPlayersBtn.TextColor3 = Color3.fromRGB(170, 170, 170)
+    
+    ListSecTitle.Text = "Список команд (Клік = Ігнор):"
+    RefreshLists()
+end)
+
+TabPlayersBtn.MouseButton1Click:Connect(function()
+    SelectedTab = "Players"
+    TabPlayersBtn.BackgroundColor3 = Color3.fromRGB(25, 60, 90)
+    TabPlayersBtn.BorderColor3 = Color3.fromRGB(0, 191, 255)
+    TabPlayersBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    TabTeamsBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    TabTeamsBtn.BorderColor3 = Color3.fromRGB(100, 100, 100)
+    TabTeamsBtn.TextColor3 = Color3.fromRGB(170, 170, 170)
+    
+    ListSecTitle.Text = "Список гравців (Клік = Статус):"
+    RefreshLists()
+end)
+
+RefreshLists = function()
+    for _, child in ipairs(ListContainer:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    local count = 0
+    local filterText = string.lower(NameInputBox.Text)
+
+    if SelectedTab == "Teams" then
+        local foundTeams = {}
+        for _, team in ipairs(Teams:GetTeams()) do foundTeams[team.Name] = true end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Team then foundTeams[player.Team.Name] = true end
+        end
+
+        for teamName, _ in pairs(foundTeams) do
+            if filterText == "" or string.find(string.lower(teamName), filterText) then
+                count = count + 1
+                local btn = Instance.new("TextButton")
+                btn.Parent = ListContainer
+                btn.Size = UDim2.new(1, -4, 0, 22)
+                btn.Font = Enum.Font.SourceSansBold
+                btn.TextSize = 10
+
+                if IgnoredTeams[teamName] then
+                    btn.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
+                    btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+                    btn.Text = "[Ігнор] " .. teamName
+                else
+                    btn.BackgroundColor3 = Color3.fromRGB(20, 60, 20)
+                    btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+                    btn.Text = "[Ціль] " .. teamName
+                end
+
+                btn.MouseButton1Click:Connect(function()
+                    IgnoredTeams[teamName] = not IgnoredTeams[teamName] and true or nil
+                    RefreshLists()
+                end)
+            end
+        end
+    elseif SelectedTab == "Players" then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if filterText == "" or string.find(string.lower(player.Name), filterText) then
+                    count = count + 1
+                    local btn = Instance.new("TextButton")
+                    btn.Parent = ListContainer
+                    btn.Size = UDim2.new(1, -4, 0, 22)
+                    btn.Font = Enum.Font.SourceSansBold
+                    btn.TextSize = 10
+
+                    local playerTeamName = player.Team and player.Team.Name or nil
+                    local isTeamIgnored = playerTeamName and IgnoredTeams[playerTeamName]
+                    
+                    local isIgnored = false
+                    if ForcedTargetPlayers[player] then
+                        isIgnored = false
+                    elseif SpecificIgnoredPlayers[player] or isTeamIgnored then
+                        isIgnored = true
+                    end
+
+                    if isIgnored then
+                        btn.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
+                        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+                        btn.Text = "[Ігнор] " .. player.Name
+                    else
+                        btn.BackgroundColor3 = Color3.fromRGB(20, 60, 20)
+                        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+                        btn.Text = "[Ціль] " .. player.Name
+                    end
+
+                    btn.MouseButton1Click:Connect(function()
+                        if isIgnored then
+                            if SpecificIgnoredPlayers[player] then SpecificIgnoredPlayers[player] = nil end
+                            if isTeamIgnored then ForcedTargetPlayers[player] = true end
+                        else
+                            if ForcedTargetPlayers[player] then ForcedTargetPlayers[player] = nil end
+                            if not isTeamIgnored then SpecificIgnoredPlayers[player] = true end
+                        end
+                        RefreshLists()
+                    end)
+                end
+            end
+        end
+    end
+
+    ListContainer.CanvasSize = UDim2.new(0, 0, 0, count * 25)
+end
+
+NameInputBox:GetPropertyChangedSignal("Text"):Connect(RefreshLists)
+RefreshBtn.MouseButton1Click:Connect(RefreshLists)
+RefreshLists()
+
+Players.PlayerAdded:Connect(RefreshLists)
+Players.PlayerRemoving:Connect(function(player)
+    RefreshLists()
+    if EspDrawings[player] then
+        EspDrawings[player]:Destroy()
+        EspDrawings[player] = nil
+    end
+end)
+
+-- Безпечна перевірка видимості через Raycast
+local function isVisible(targetPart, character)
+    local localCharacter = LocalPlayer.Character
+    if not localCharacter then return false end
+    
+    local originPart = localCharacter:FindFirstChild("Head") or localCharacter:FindFirstChild("HumanoidRootPart")
+    if not originPart then return false end
+    
+    local origin = originPart.Position
+    local direction = targetPart.Position - origin
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {localCharacter, character}
+    raycastParams.IgnoreWater = true
+    
+    local success, result = pcall(function()
+        return workspace:Raycast(origin, direction, raycastParams)
+    end)
+    
+    if not success then return true end
+    return result == nil
+end
+
+-- Створення ESP підсвічування
+local function createTeamHighlight(player, character)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "BypassedHighlight"
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    
+    pcall(function()
+        highlight.Parent = gethui()
+    end)
+    if not highlight.Parent then
+        highlight.Parent = character
+    end
+    
+    EspDrawings[character] = highlight
+end
+
+-- Головний цикл
+RunService.RenderStepped:Connect(function()
+    local targetPart = nil
+    local shortestDistance = math.huge
+    local closestPlayerName = "Немає"
+    local closestDistVal = "-"
+    local localCharacter = LocalPlayer.Character
+    local localRootPos = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart") and localCharacter.HumanoidRootPart.Position or nil
+
+    if EspEnabled and localRootPos then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+                if character and humanoid and humanoid.Health > 0 and rootPart then
+                    local dist = math.floor((rootPart.Position - localRootPos).Magnitude)
+                    if dist <= MaxDistance then
+                        if not EspDrawings[character] or not EspDrawings[character].Parent then
+                            createTeamHighlight(player, character)
+                        end
+                    else
+                        if EspDrawings[character] then
+                            EspDrawings[character]:Destroy()
+                            EspDrawings[character] = nil
+                        end
+                    end
+                else
+                    if character and EspDrawings[character] then
+                        EspDrawings[character]:Destroy()
+                        EspDrawings[character] = nil
+                    end
+                end
+            end
+        end
+    else
+        ClearEsp()
+    end
+
+    if localRootPos then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                
+                local playerTeamName = player.Team and player.Team.Name or nil
+                local isTeamIgnored = playerTeamName and IgnoredTeams[playerTeamName]
+                local isPlayerIgnored = SpecificIgnoredPlayers[player]
+
+                local canTarget = true
+                if ForcedTargetPlayers[player] then
+                    canTarget = true
+                elseif isPlayerIgnored or isTeamIgnored then
+                    canTarget = false
+                end
+
+                if canTarget then
+                    local part = player.Character:FindFirstChild(AimPart)
+                    if part then
+                        if isVisible(part, player.Character) then
+                            local distanceToPlayer = (part.Position - localRootPos).Magnitude
+                            if distanceToPlayer <= MaxDistance then
+                                local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
+                                if onScreen then
+                                    local mouse = UserInputService:GetMouseLocation()
+                                    local screenDistance = (Vector2.new(screenPoint.X, screenPoint.Y) - mouse).Magnitude
+
+                                    if screenDistance < shortestDistance then
+                                        shortestDistance = screenDistance
+                                        targetPart = part
+                                        closestPlayerName = player.Name
+                                        closestDistVal = math.floor(distanceToPlayer) .. " м"
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    InfoBox.Text = string.format("Ціль: %s\nДистанція: %s\nAimbot: %s\nSafe ESP: %s", closestPlayerName, closestDistVal, AimbotEnabled and "ON" or "OFF", EspEnabled and "ON" or "OFF")
+
+    if AimbotEnabled and targetPart then
+        local currentCFrame = Camera.CFrame
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+        Camera.CFrame = currentCFrame:Lerp(targetCFrame, Sensitivity)
+    end
+end)
