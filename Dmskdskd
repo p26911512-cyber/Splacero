@@ -1,0 +1,541 @@
+local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- Налаштування Combat
+local HitboxEnabled = true
+local HitboxSize = 5
+
+local AimbotEnabled = false
+local AimTargetPart = "Head"
+local AimSmoothness = 0.25
+local MaxAimDistance = 300
+
+local AntiRecoilEnabled = false -- Статус візуальної кнопки Anti Recoil
+
+local IgnoredPlayers = {}
+local IgnoredTeams = {}
+
+-- Безпечне визначення Parent для GUI
+local guiParent
+local success, _ = pcall(function()
+    guiParent = game:GetService("CoreGui")
+end)
+if not success or not guiParent then
+    guiParent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+if guiParent:FindFirstChild("UniversalHubGUI") then
+    guiParent.UniversalHubGUI:Destroy()
+end
+
+-- Створення GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UniversalHubGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = guiParent
+
+-- Кнопка відкриття/закриття
+local ToggleMenuBtn = Instance.new("TextButton")
+ToggleMenuBtn.Name = "ToggleMenuBtn"
+ToggleMenuBtn.Parent = ScreenGui
+ToggleMenuBtn.Position = UDim2.new(0.02, 0, 0.2, 0)
+ToggleMenuBtn.Size = UDim2.new(0, 110, 0, 35)
+ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+ToggleMenuBtn.BackgroundTransparency = 0.2
+ToggleMenuBtn.Text = "Toggle Menu"
+ToggleMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleMenuBtn.TextSize = 12
+ToggleMenuBtn.Active = true
+ToggleMenuBtn.Draggable = true
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 8)
+BtnCorner.Parent = ToggleMenuBtn
+
+-- Головне Меню
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.Position = UDim2.new(0.2, 0, 0.15, 0)
+MainFrame.Size = UDim2.new(0, 500, 0, 440)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+MainFrame.BackgroundTransparency = 0.25
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- TopBar
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TopBar.BackgroundTransparency = 0.2
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TopBar
+Title.Position = UDim2.new(0.03, 0, 0, 0)
+Title.Size = UDim2.new(0.8, 0, 1, 0)
+Title.Text = "UNIVERSAL HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.TextSize = 13
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = TopBar
+CloseBtn.Position = UDim2.new(0.91, 0, 0.1, 0)
+CloseBtn.Size = UDim2.new(0, 35, 0, 28)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.BackgroundTransparency = 0.3
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Панель вкладок (Navigation Bar)
+local TabBar = Instance.new("Frame")
+TabBar.Parent = MainFrame
+TabBar.Position = UDim2.new(0.03, 0, 0.09, 0)
+TabBar.Size = UDim2.new(0.94, 0, 0, 30)
+TabBar.BackgroundTransparency = 1
+
+local CombatTabBtn = Instance.new("TextButton")
+CombatTabBtn.Parent = TabBar
+CombatTabBtn.Size = UDim2.new(0.3, 0, 1, 0)
+CombatTabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+CombatTabBtn.Text = "⚔️ COMBAT"
+CombatTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CombatTabBtn.TextSize = 11
+
+local TabCorner = Instance.new("UICorner")
+TabCorner.CornerRadius = UDim.new(0, 6)
+TabCorner.Parent = CombatTabBtn
+
+-- Вкладка COMBAT
+local CombatFrame = Instance.new("ScrollingFrame")
+CombatFrame.Parent = MainFrame
+CombatFrame.Position = UDim2.new(0.03, 0, 0.17, 0)
+CombatFrame.Size = UDim2.new(0.94, 0, 0, 350)
+CombatFrame.BackgroundTransparency = 1
+CombatFrame.ScrollBarThickness = 5
+CombatFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local Layout = Instance.new("UIListLayout")
+Layout.Parent = CombatFrame
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Padding = UDim.new(0, 6)
+
+local function createOptionBtn(text, color)
+    local btn = Instance.new("TextButton")
+    btn.Parent = CombatFrame
+    btn.Size = UDim2.new(0.98, 0, 0, 35)
+    btn.BackgroundColor3 = color or Color3.fromRGB(30, 30, 45)
+    btn.BackgroundTransparency = 0.3
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+-- Елементи керування COMBAT
+local ToggleHitboxBtn = createOptionBtn("Hitbox Expander: ON", Color3.fromRGB(40, 160, 40))
+local SizeBtn = createOptionBtn("Hitbox Size: 5")
+local ToggleAimBtn = createOptionBtn("Aimbot: OFF", Color3.fromRGB(160, 40, 40))
+local AimPartBtn = createOptionBtn("Target Part: Head")
+local AimDistBtn = createOptionBtn("Max Aim Distance: 300m")
+
+-- Нова кнопка Anti Recoil (візуальна)
+local ToggleRecoilBtn = createOptionBtn("Anti Recoil: OFF", Color3.fromRGB(160, 40, 40))
+
+-- Секція команд
+local TeamsHeader = Instance.new("TextLabel")
+TeamsHeader.Parent = CombatFrame
+TeamsHeader.Size = UDim2.new(0.98, 0, 0, 25)
+TeamsHeader.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+TeamsHeader.BackgroundTransparency = 0.3
+TeamsHeader.Text = "  --- ІГНОРУВАННЯ КОМАНД ---"
+TeamsHeader.TextColor3 = Color3.fromRGB(255, 220, 100)
+TeamsHeader.TextSize = 11
+TeamsHeader.TextXAlignment = Enum.TextXAlignment.Left
+
+local TeamsHeaderCorner = Instance.new("UICorner")
+TeamsHeaderCorner.CornerRadius = UDim.new(0, 4)
+TeamsHeaderCorner.Parent = TeamsHeader
+
+local TeamsListContainer = Instance.new("Frame")
+TeamsListContainer.Parent = CombatFrame
+TeamsListContainer.Size = UDim2.new(0.98, 0, 0, 0)
+TeamsListContainer.BackgroundTransparency = 1
+
+local TeamsLayout = Instance.new("UIListLayout")
+TeamsLayout.Parent = TeamsListContainer
+TeamsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TeamsLayout.Padding = UDim.new(0, 4)
+
+-- Секція гравців
+local PlayersHeader = Instance.new("TextLabel")
+PlayersHeader.Parent = CombatFrame
+PlayersHeader.Size = UDim2.new(0.98, 0, 0, 25)
+PlayersHeader.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+PlayersHeader.BackgroundTransparency = 0.3
+PlayersHeader.Text = "  --- ІГНОРУВАННЯ ГРАВЦІВ ---"
+PlayersHeader.TextColor3 = Color3.fromRGB(100, 220, 255)
+PlayersHeader.TextSize = 11
+PlayersHeader.TextXAlignment = Enum.TextXAlignment.Left
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 4)
+HeaderCorner.Parent = PlayersHeader
+
+local PlayersListContainer = Instance.new("Frame")
+PlayersListContainer.Parent = CombatFrame
+PlayersListContainer.Size = UDim2.new(0.98, 0, 0, 0)
+PlayersListContainer.BackgroundTransparency = 1
+
+local PlayersLayout = Instance.new("UIListLayout")
+PlayersLayout.Parent = PlayersListContainer
+PlayersLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PlayersLayout.Padding = UDim.new(0, 4)
+
+-- Події кнопок
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+ToggleMenuBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+
+ToggleHitboxBtn.MouseButton1Click:Connect(function()
+    HitboxEnabled = not HitboxEnabled
+    ToggleHitboxBtn.Text = HitboxEnabled and "Hitbox Expander: ON" or "Hitbox Expander: OFF"
+    ToggleHitboxBtn.BackgroundColor3 = HitboxEnabled and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(160, 40, 40)
+end)
+
+SizeBtn.MouseButton1Click:Connect(function()
+    if HitboxSize == 1 then HitboxSize = 2
+    elseif HitboxSize == 2 then HitboxSize = 3
+    elseif HitboxSize == 3 then HitboxSize = 4
+    elseif HitboxSize == 4 then HitboxSize = 5
+    elseif HitboxSize == 5 then HitboxSize = 10
+    elseif HitboxSize == 10 then HitboxSize = 15
+    elseif HitboxSize == 15 then HitboxSize = 20
+    elseif HitboxSize == 20 then HitboxSize = 25
+    else HitboxSize = 1 end
+    SizeBtn.Text = "Hitbox Size: " .. tostring(HitboxSize)
+end)
+
+ToggleAimBtn.MouseButton1Click:Connect(function()
+    AimbotEnabled = not AimbotEnabled
+    ToggleAimBtn.Text = AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
+    ToggleAimBtn.BackgroundColor3 = AimbotEnabled and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(160, 40, 40)
+end)
+
+AimPartBtn.MouseButton1Click:Connect(function()
+    AimTargetPart = (AimTargetPart == "Head") and "HumanoidRootPart" or "Head"
+    AimPartBtn.Text = (AimTargetPart == "Head") and "Target Part: Head" or "Target Part: Body"
+end)
+
+AimDistBtn.MouseButton1Click:Connect(function()
+    if MaxAimDistance == 300 then MaxAimDistance = 500
+    elseif MaxAimDistance == 500 then MaxAimDistance = 1000
+    elseif MaxAimDistance == 1000 then MaxAimDistance = 100
+    else MaxAimDistance = 300 end
+    AimDistBtn.Text = "Max Aim Distance: " .. tostring(MaxAimDistance) .. "m"
+end)
+
+-- Подія натискання для Anti Recoil (суто візуальний перемикач)
+ToggleRecoilBtn.MouseButton1Click:Connect(function()
+    AntiRecoilEnabled = not AntiRecoilEnabled
+    ToggleRecoilBtn.Text = AntiRecoilEnabled and "Anti Recoil: ON" or "Anti Recoil: OFF"
+    ToggleRecoilBtn.BackgroundColor3 = AntiRecoilEnabled and Color3.fromRGB(40, 160, 40) or Color3.fromRGB(160, 40, 40)
+end)
+
+-- Розрахунок Canvas
+local function recalculateCanvas()
+    local teamCount = #TeamsListContainer:GetChildren() - 1
+    local playerCount = #PlayersListContainer:GetChildren() - 1
+    if teamCount < 0 then teamCount = 0 end
+    if playerCount < 0 then playerCount = 0 end
+    
+    TeamsListContainer.Size = UDim2.new(0.98, 0, 0, teamCount * 34)
+    PlayersListContainer.Size = UDim2.new(0.98, 0, 0, playerCount * 34)
+    
+    CombatFrame.CanvasSize = UDim2.new(0, 0, 0, 310 + (teamCount * 34) + (playerCount * 34))
+end
+
+local updatePlayerList
+
+local function updateTeamList()
+    for _, child in ipairs(TeamsListContainer:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    local serverTeams = Teams:GetTeams()
+    if #serverTeams == 0 then
+        local emptyLabel = Instance.new("Frame")
+        emptyLabel.Parent = TeamsListContainer
+        emptyLabel.Size = UDim2.new(1, 0, 0, 25)
+        emptyLabel.BackgroundTransparency = 1
+        
+        local txt = Instance.new("TextLabel")
+        txt.Parent = emptyLabel
+        txt.Size = UDim2.new(1, 0, 1, 0)
+        txt.BackgroundTransparency = 1
+        txt.Text = "  Команди не знайдені в цій грі"
+        txt.TextColor3 = Color3.fromRGB(150, 150, 150)
+        txt.TextSize = 10
+        txt.TextXAlignment = Enum.TextXAlignment.Left
+    else
+        for _, t in ipairs(serverTeams) do
+            local tFrame = Instance.new("Frame")
+            tFrame.Parent = TeamsListContainer
+            tFrame.Size = UDim2.new(1, 0, 0, 30)
+            tFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+            tFrame.BackgroundTransparency = 0.4
+
+            local tCorner = Instance.new("UICorner")
+            tCorner.CornerRadius = UDim.new(0, 4)
+            tCorner.Parent = tFrame
+
+            local tNameLabel = Instance.new("TextLabel")
+            tNameLabel.Parent = tFrame
+            tNameLabel.Size = UDim2.new(0.65, 0, 1, 0)
+            tNameLabel.BackgroundTransparency = 1
+            tNameLabel.Text = "  " .. t.Name
+            tNameLabel.TextColor3 = t.TeamColor and t.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+            tNameLabel.TextSize = 11
+            tNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local tIgnoreBtn = Instance.new("TextButton")
+            tIgnoreBtn.Parent = tFrame
+            tIgnoreBtn.Position = UDim2.new(0.68, 0, 0.15, 0)
+            tIgnoreBtn.Size = UDim2.new(0.28, 0, 0.7, 0)
+            tIgnoreBtn.TextSize = 10
+            tIgnoreBtn.BackgroundTransparency = 0.3
+
+            local btnC = Instance.new("UICorner")
+            btnC.CornerRadius = UDim.new(0, 4)
+            btnC.Parent = tIgnoreBtn
+
+            if IgnoredTeams[t.Name] then
+                tIgnoreBtn.Text = "Unignore"
+                tIgnoreBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            else
+                tIgnoreBtn.Text = "Ignore"
+                tIgnoreBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 40)
+            end
+            tIgnoreBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+            tIgnoreBtn.MouseButton1Click:Connect(function()
+                local shouldIgnore = not IgnoredTeams[t.Name]
+                IgnoredTeams[t.Name] = shouldIgnore or nil
+                
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Team == t then
+                        IgnoredPlayers[p.UserId] = shouldIgnore or nil
+                    end
+                end
+
+                updateTeamList()
+                if updatePlayerList then updatePlayerList() end
+            end)
+        end
+    end
+    recalculateCanvas()
+end
+
+updatePlayerList = function()
+    for _, child in ipairs(PlayersListContainer:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local pFrame = Instance.new("Frame")
+            pFrame.Parent = PlayersListContainer
+            pFrame.Size = UDim2.new(1, 0, 0, 30)
+            pFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+            pFrame.BackgroundTransparency = 0.4
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 4)
+            pCorner.Parent = pFrame
+
+            local pNameLabel = Instance.new("TextLabel")
+            pNameLabel.Parent = pFrame
+            pNameLabel.Size = UDim2.new(0.65, 0, 1, 0)
+            pNameLabel.BackgroundTransparency = 1
+            pNameLabel.Text = "  " .. p.Name
+            pNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            pNameLabel.TextSize = 11
+            pNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local pIgnoreBtn = Instance.new("TextButton")
+            pIgnoreBtn.Parent = pFrame
+            pIgnoreBtn.Position = UDim2.new(0.68, 0, 0.15, 0)
+            pIgnoreBtn.Size = UDim2.new(0.28, 0, 0.7, 0)
+            pIgnoreBtn.TextSize = 10
+            pIgnoreBtn.BackgroundTransparency = 0.3
+
+            local btnC = Instance.new("UICorner")
+            btnC.CornerRadius = UDim.new(0, 4)
+            btnC.Parent = pIgnoreBtn
+
+            local isPlayerIgnored = IgnoredPlayers[p.UserId] or (p.Team and IgnoredTeams[p.Team.Name])
+
+            if isPlayerIgnored then
+                pIgnoreBtn.Text = "Unignore"
+                pIgnoreBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            else
+                pIgnoreBtn.Text = "Ignore"
+                pIgnoreBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 40)
+            end
+            pIgnoreBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+            pIgnoreBtn.MouseButton1Click:Connect(function()
+                IgnoredPlayers[p.UserId] = not isPlayerIgnored or nil
+                updatePlayerList()
+            end)
+        end
+    end
+    recalculateCanvas()
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+Teams.ChildAdded:Connect(updateTeamList)
+Teams.ChildRemoved:Connect(updateTeamList)
+
+updateTeamList()
+updatePlayerList()
+
+-- Чат-команди
+LocalPlayer.Chatted:Connect(function(message)
+    local args = {}
+    for word in message:gmatch("%S+") do table.insert(args, word) end
+    
+    if args[1] == "/ignore" and args[2] then
+        local targetName = args[2]:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower():sub(1, #targetName) == targetName then
+                IgnoredPlayers[p.UserId] = true
+                updatePlayerList()
+                break
+            end
+        end
+    elseif args[1] == "/unignore" and args[2] then
+        local targetName = args[2]:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower():sub(1, #targetName) == targetName then
+                IgnoredPlayers[p.UserId] = nil
+                updatePlayerList()
+                break
+            end
+        end
+    end
+end)
+
+-- Перевірка ігнорування
+local function isIgnored(player)
+    if IgnoredPlayers[player.UserId] then return true end
+    if player.Team and IgnoredTeams[player.Team.Name] then return true end
+    return false
+end
+
+local function isVisible(targetPart, targetCharacter)
+    if not LocalPlayer.Character then return false end
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetCharacter}
+    raycastParams.IgnoreWater = true
+
+    local result = Workspace:Raycast(origin, direction, raycastParams)
+    return result == nil
+end
+
+local function isSeated(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.SeatPart ~= nil
+end
+
+local function getClosestPlayer()
+    local closestPart = nil
+    local shortestDistance = math.huge
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+
+    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local targetPart = character:FindFirstChild(AimTargetPart) or character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+            if targetPart and humanoid and humanoid.Health > 0 and not isSeated(character) and not isIgnored(player) then
+                local worldDistance = (targetPart.Position - myPos).Magnitude
+                if worldDistance <= MaxAimDistance then
+                    if isVisible(targetPart, character) then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen then
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                closestPart = targetPart
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestPart
+end
+
+-- Основний цикл
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+
+            if hrp then
+                if HitboxEnabled and not isSeated(character) and not isIgnored(player) then
+                    hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                    hrp.Transparency = 1
+                    hrp.CanCollide = false
+                else
+                    hrp.Size = Vector3.new(2, 2, 1)
+                    hrp.Transparency = 1
+                end
+            end
+        end
+    end
+
+    if AimbotEnabled then
+        local target = getClosestPlayer()
+        if target then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), AimSmoothness)
+        end
+    end
+end)
